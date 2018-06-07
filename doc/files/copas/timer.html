@@ -3,7 +3,7 @@
 <html>
 <head>
     <title>Reference</title>
-    <link rel="stylesheet" href="../luadoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../luadoc.css" type="text/css" />
 	<!--meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/-->
 </head>
 
@@ -24,7 +24,7 @@
 <h1>LuaDoc</h1>
 <ul>
 	
-	<li><a href="../index.html">Index</a></li>
+	<li><a href="../../index.html">Index</a></li>
 	
 </ul>
 
@@ -38,7 +38,11 @@
 <h1>Files</h1>
 <ul>
 
-	<li><strong>copastimer.lua</strong></li>
+	<li>
+		<a href="../../files/copas/eventer.html">copas/eventer.lua</a>
+	</li>
+
+	<li><strong>copas/timer.lua</strong></li>
 	
 </ul>
 
@@ -51,17 +55,17 @@
 
 <div id="content">
 
-<h1>File <code>copastimer.lua</code></h1>
+<h1>File <code>copas/timer.lua</code></h1>
 
 
-<p>Copas Timer is a module that adds a timer capability to the Copas scheduler. It provides the same base functions <code>step</code> and <code>loop</code> as Copas (it actually replaces them) except that it will also check for (and run) timers expiring and run background workers if there is no IO or timer to handle. It also adds an <code>isexiting</code> field that allows for a controlled exit from the loop.<br/>&nbsp<br/>To use the module, make sure to 'require' copastimer before any other code 'requires' copas. This will make sure that the copas version in use will updated before any other code uses it. The changes should be transparent to your existing code.<br/>&nbsp<br/>There is a difference between the 2 background mechanisms provided; the timers run on the main loop, should never yield and return quickly, but they are precise. On the other hand the workers run in their own thread (coroutine) and can be yielded if they take too long, but are less precisely timed. <br/><strong>Important:</strong> the workers should never wait for work to come in. They must exit when done. New work should create a new worker. The reason is that while there are worker threads available the luasocket <code>select</code> statement is called with a 0 timeout (non-blocking) to make sure background work is completed asap. If a worker waits for work (call <code>yield()</code> when it has nothing to do) it will create a busy-wait situation.<br/>&nbsp<br/>Copas Timer is free software under the MIT/X11 license.</p>
+<p>Copas Timer is a module that adds a timer capability to the Copas scheduler. It provides the same base functions <code>step</code> and <code>loop</code> as Copas (it actually replaces them) except that it will also check for (and run) timers expiring and run background workers if there is no IO or timer to handle. It also adds an <code>exitloop</code> method that allows for a controlled exit from the loop.<br/>&nbsp<br/>To use the module, make sure to 'require' copastimer before any other code 'requires' copas. This will make sure that the copas version in use will be updated before any other code uses it. The changes should be transparent to your existing code. It should be required as; <code>local copas = require("copas.timer")</code> because it returns the global <code>copas</code> table and not a separate timer table.<br/>&nbsp<br/>There is a difference between the 2 background mechanisms provided; the timers run on the main loop, they should never yield and return quickly, but they are precise. On the other hand the workers run in their own thread (coroutine) and can be yielded if they take too long, but are less precisely timed.<br/>&nbsp<br/>The workers are dispatched from a rotating queue, so when a worker is up to run it will be removed from the queue, resumed, and (if not finished) added at the end of the queue again. <br/><strong>Important:</strong> the workers should never wait for work to come in. They must exit when done. New work should create a new worker. The reason is that while there are worker threads available the luasocket <code>select</code> statement is called with a 0 timeout (non-blocking) to make sure background work is completed asap. If a worker waits for work (call <code>yield()</code> when it has nothing to do) it will create a busy-wait situation.<br/>&nbsp<br/>Copas Timer is free software under the MIT/X11 license.</p>
 
 
 
 <p>Copyright &copy;2011 Thijs Schreijer</p>
 
 
-<p><small><b>Release:</b> Version 0.4.0, Timer module to extend Copas with a timer and worker capability</small></p>
+<p><small><b>Release:</b> Version 0.4.1, Timer module to extend Copas with a timer and worker capability</small></p>
 
 
 
@@ -84,8 +88,18 @@
 	</tr>
 
 	<tr>
+	<td class="name" nowrap><a href="#copas.exitloop">copas.exitloop</a>&nbsp;(timeout, keeptimers)</td>
+	<td class="summary">Instructs Copas to exit the loop.</td>
+	</tr>
+
+	<tr>
+	<td class="name" nowrap><a href="#copas.getworker">copas.getworker</a>&nbsp;(t)</td>
+	<td class="summary">Returns a background worker </td>
+	</tr>
+
+	<tr>
 	<td class="name" nowrap><a href="#copas.isexiting">copas.isexiting</a>&nbsp;()</td>
-	<td class="summary">Indicator of the loop running or exiting (it is a field, not a function!).</td>
+	<td class="summary">Indicator of the loop running or exiting.</td>
 	</tr>
 
 	<tr>
@@ -161,6 +175,9 @@ Adds a worker thread. The threads will be executed when there is no IO nor any e
 
 
 
+<h3>Usage:</h3>
+<ul><pre class=example>copas.addworker(function(...)<br/>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsplocal t = {...}<br/>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbspprint(table.concat(t, " "))<br/>&nbsp&nbsp&nbsp&nbspend, { "Hello", "world" })</pre></ul>
+
 
 
 <h3>Return value:</h3>
@@ -171,7 +188,7 @@ Adds a worker thread. The threads will be executed when there is no IO nor any e
 <h3>See also:</h3>
 <ul>
 	
-	<!-- <li><a href="#../files/copastimer.html#copas.removeworkercopas.removeworker"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#copas.removeworkercopas.removeworker"> -->
 	<li><a href="#copas.removeworker">
 		copas.removeworker</li>
 	</a>
@@ -185,7 +202,7 @@ Adds a worker thread. The threads will be executed when there is no IO nor any e
 
 <dt><a name="copas.cancelall"></a><strong>copas.cancelall</strong>&nbsp;()</dt>
 <dd>
-Cancels all currently armed timers. Call this method after exiting the loop, to make sure all timers are properly cancelled and their cancel callback methods have been executed.
+Cancels all currently armed timers.
 
 
 
@@ -194,6 +211,16 @@ Cancels all currently armed timers. Call this method after exiting the loop, to 
 
 
 
+
+<h3>See also:</h3>
+<ul>
+	
+	<!-- <li><a href="#../../files/copas/timer.html#copas.exitloopcopas.exitloop"> -->
+	<li><a href="#copas.exitloop">
+		copas.exitloop</li>
+	</a>
+	
+</ul>
 
 </dd>
 
@@ -225,6 +252,9 @@ Calls a function delayed, after the specified amount of time. An example use is 
 
 
 
+<h3>Usage:</h3>
+<ul><pre class=example>local t = socket.gettime()<br/>copas.delayedexecutioner(5, function(txt)<br/>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbspprint(txt .. " and it was " .. socket.gettime() - t .. " to be precise.")<br/>&nbsp&nbsp&nbsp&nbspend, "This should display in 5 seconds from now.")</pre></ul>
+
 
 
 
@@ -232,7 +262,7 @@ Calls a function delayed, after the specified amount of time. An example use is 
 <h3>See also:</h3>
 <ul>
 	
-	<!-- <li><a href="#../files/copastimer.html#copas.newtimercopas.newtimer"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#copas.newtimercopas.newtimer"> -->
 	<li><a href="#copas.newtimer">
 		copas.newtimer</li>
 	</a>
@@ -244,16 +274,26 @@ Calls a function delayed, after the specified amount of time. An example use is 
 
 
 
-<dt><a name="copas.isexiting"></a><strong>copas.isexiting</strong>&nbsp;()</dt>
+<dt><a name="copas.exitloop"></a><strong>copas.exitloop</strong>&nbsp;(timeout, keeptimers)</dt>
 <dd>
-Indicator of the loop running or exiting (it is a field, not a function!). Possible values; <ul> <li><code>nil</code>: the loop is not running, </li> <li><code>false</code>: the loop is running, or </li> <li><code>true</code>: the loop is scheduled to stop after the current iteration.</li></ul>
+Instructs Copas to exit the loop. It will wait for any background workers to complete. If the <code>copas.eventer</code> is used then the timeout will only start after the <code>copas.events.loopstopping</code> event has been completely handled.
+
+
+<h3>Parameters:</h3>
+<ul>
+	
+	<li>
+	  <code><em>timeout</em></code>: Timeout (in seconds) after which to forcefully exit the loop, abandoning any workerthreads still running. <ul><li><code>nil</code> or negative: no timeout, continue running until worker queue is empty</li> <li><code>&lt 0</code>: exit immediately after next loop iteration, do not wait for workers nor the <code>copas.events.loopstopping/loopstopped</code> events</li> to complete (timers will still be cancelled if set to do so)</ul>
+	</li>
+	
+	<li>
+	  <code><em>keeptimers</em></code>: (boolean) if <code>true</code> then the active timers will NOT be cancelled, otherwise <code>copas.cancelall()</code> will be called to properly cancel all running timers.
+	</li>
+	
+</ul>
 
 
 
-
-
-<h3>Usage:</h3>
-<ul><pre class=example>if copas.isexiting ~= nil then<br/>&nbsp&nbsp&nbsp&nbsp-- loop is currently running, make it exit after the next iteration<br/>&nbsp&nbsp&nbsp&nbspcopas.isexiting = true<br/>end</pre></ul>
 
 
 
@@ -262,9 +302,94 @@ Indicator of the loop running or exiting (it is a field, not a function!). Possi
 <h3>See also:</h3>
 <ul>
 	
-	<!-- <li><a href="#../files/copastimer.html#copas.loopcopas.loop"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#copas.loopcopas.loop"> -->
 	<li><a href="#copas.loop">
 		copas.loop</li>
+	</a>
+	
+	<!-- <li><a href="#../../files/copas/timer.html#copas.isexitingcopas.isexiting"> -->
+	<li><a href="#copas.isexiting">
+		copas.isexiting</li>
+	</a>
+	
+</ul>
+
+</dd>
+
+
+
+
+<dt><a name="copas.getworker"></a><strong>copas.getworker</strong>&nbsp;(t)</dt>
+<dd>
+Returns a background worker
+
+
+<h3>Parameters:</h3>
+<ul>
+	
+	<li>
+	  <code><em>t</em></code>: thread (coroutine) to get from the list
+	</li>
+	
+</ul>
+
+
+
+
+<h3>Usage:</h3>
+<ul><pre class=example>if copas.getworker(coroutine.running()) then<br/>&nbsp&nbsp&nbsp&nbspprint ("I'm running as a background worker")<br/>else<br/>&nbsp&nbsp&nbsp&nbspprint ("No background worker found, so I'm on my own")<br/>end</pre></ul>
+
+
+
+<h3>Return value:</h3>
+<ul>the thread table (as earlier returned by <code>addworker()</code>) or <code>nil</code> if it wasn't found</ul>
+
+
+
+<h3>See also:</h3>
+<ul>
+	
+	<!-- <li><a href="#../../files/copas/timer.html#copas.addworkercopas.addworker"> -->
+	<li><a href="#copas.addworker">
+		copas.addworker</li>
+	</a>
+	
+</ul>
+
+</dd>
+
+
+
+
+<dt><a name="copas.isexiting"></a><strong>copas.isexiting</strong>&nbsp;()</dt>
+<dd>
+Indicator of the loop running or exiting.
+
+
+
+
+
+<h3>Usage:</h3>
+<ul><pre class=example>if copas.isexiting() ~= nil then<br/>&nbsp&nbsp&nbsp&nbsp-- loop is currently running, make it exit after the worker queue is empty and cancel any timers<br/>&nbsp&nbsp&nbsp&nbspcopas.exitloop(nil, false)<br/>end</pre></ul>
+
+
+
+<h3>Return value:</h3>
+<ul><ul> <li><code>nil</code>: the loop is not running, </li> <li><code>false</code>: the loop is running, or </li> <li><code>true</code>: the loop is scheduled to stop</li></ul></ul>
+
+
+
+<h3>See also:</h3>
+<ul>
+	
+	<!-- <li><a href="#../../files/copas/timer.html#copas.loopcopas.loop"> -->
+	<li><a href="#copas.loop">
+		copas.loop</li>
+	</a>
+	
+	<!-- <li><a href="#../../files/copas/timer.html#copas.exitloopcopas.exitloop"> -->
+	<li><a href="#copas.exitloop">
+		copas.exitloop</li>
 	</a>
 	
 </ul>
@@ -276,7 +401,7 @@ Indicator of the loop running or exiting (it is a field, not a function!). Possi
 
 <dt><a name="copas.loop"></a><strong>copas.loop</strong>&nbsp;(timeout, precision)</dt>
 <dd>
-Executes an endless loop handling Copas steps and timers  (it replaces the original <code>copas.loop()</code>). The loop can be terminated by setting <code>isexiting</code> to true. When exiting the loop, consider call <code>cancelall()</code> to make sure all armed timers get properly cancelled and their <code>cancel</code> callbacks get called properly.
+Executes an endless loop handling Copas steps and timers  (it replaces the original <code>copas.loop()</code>). The loop can be terminated by calling <code>exitloop</code>.
 
 
 <h3>Parameters:</h3>
@@ -302,12 +427,17 @@ Executes an endless loop handling Copas steps and timers  (it replaces the origi
 <h3>See also:</h3>
 <ul>
 	
-	<!-- <li><a href="#../files/copastimer.html#copas.stepcopas.step"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#copas.stepcopas.step"> -->
 	<li><a href="#copas.step">
 		copas.step</li>
 	</a>
 	
-	<!-- <li><a href="#../files/copastimer.html#copas.isexitingcopas.isexiting"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#copas.exitloopcopas.exitloop"> -->
+	<li><a href="#copas.exitloop">
+		copas.exitloop</li>
+	</a>
+	
+	<!-- <li><a href="#../../files/copas/timer.html#copas.isexitingcopas.isexiting"> -->
 	<li><a href="#copas.isexiting">
 		copas.isexiting</li>
 	</a>
@@ -362,17 +492,17 @@ Creates a new timer. After creating call the <code>arm</code> method of the new 
 <h3>See also:</h3>
 <ul>
 	
-	<!-- <li><a href="#../files/copastimer.html#t:armt:arm"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#t:armt:arm"> -->
 	<li><a href="#t:arm">
 		t:arm</li>
 	</a>
 	
-	<!-- <li><a href="#../files/copastimer.html#t:cancelt:cancel"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#t:cancelt:cancel"> -->
 	<li><a href="#t:cancel">
 		t:cancel</li>
 	</a>
 	
-	<!-- <li><a href="#../files/copastimer.html#copas.cancelallcopas.cancelall"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#copas.cancelallcopas.cancelall"> -->
 	<li><a href="#copas.cancelall">
 		copas.cancelall</li>
 	</a>
@@ -411,7 +541,7 @@ Removes a worker thread
 <h3>See also:</h3>
 <ul>
 	
-	<!-- <li><a href="#../files/copastimer.html#copas.addworkercopas.addworker"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#copas.addworkercopas.addworker"> -->
 	<li><a href="#copas.addworker">
 		copas.addworker</li>
 	</a>
@@ -454,7 +584,7 @@ Executes a single Copas step followed by the execution of the first expired (if 
 <h3>See also:</h3>
 <ul>
 	
-	<!-- <li><a href="#../files/copastimer.html#copas.loopcopas.loop"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#copas.loopcopas.loop"> -->
 	<li><a href="#copas.loop">
 		copas.loop</li>
 	</a>
@@ -500,12 +630,12 @@ Arms a previously created timer
 <h3>See also:</h3>
 <ul>
 	
-	<!-- <li><a href="#../files/copastimer.html#t:cancelt:cancel"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#t:cancelt:cancel"> -->
 	<li><a href="#t:cancel">
 		t:cancel</li>
 	</a>
 	
-	<!-- <li><a href="#../files/copastimer.html#copas.newtimercopas.newtimer"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#copas.newtimercopas.newtimer"> -->
 	<li><a href="#copas.newtimer">
 		copas.newtimer</li>
 	</a>
@@ -544,12 +674,12 @@ Cancels a previously armed timer
 <h3>See also:</h3>
 <ul>
 	
-	<!-- <li><a href="#../files/copastimer.html#t:armt:arm"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#t:armt:arm"> -->
 	<li><a href="#t:arm">
 		t:arm</li>
 	</a>
 	
-	<!-- <li><a href="#../files/copastimer.html#copas.newtimercopas.newtimer"> -->
+	<!-- <li><a href="#../../files/copas/timer.html#copas.newtimercopas.newtimer"> -->
 	<li><a href="#copas.newtimer">
 		copas.newtimer</li>
 	</a>

@@ -1,5 +1,5 @@
-require("socket")
-require("copastimer")
+local socket = require("socket")
+local copas = require("copas.timer")
 host = "localhost"
 port = 50000
 
@@ -48,7 +48,7 @@ local silly = function()
     lasttime = socket.gettime()
     if cnt == 0 then
         -- exit the loop
-        copas.isexiting = true
+        copas.exitloop(nil,true)
     elseif cnt == 4 then
         -- restart worker1
         w1 = 0
@@ -61,8 +61,14 @@ end
 server = socket.bind(host, port)            -- create a server
 copas.addserver(server, handle)
 
+-- setup a delayed executioner example
+local det = socket.gettime()
+copas.delayedexecutioner(5, function(t)
+        print(t .. " and it was " .. socket.gettime() - det .. " to be precise.")
+    end, "This should display in 5 seconds from now.")
+
 print("Waiting for some bogus connection... will exit after the count down.")
-copas.newtimer(silly, silly, nil, true, nil):arm(5)  -- silly timer
+copas.newtimer(silly, silly, nil, true, nil):arm(2)  -- silly timer
 
 copas.loop()                          -- enter loop
 print ("bye, bye...")
