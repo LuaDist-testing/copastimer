@@ -1,16 +1,9 @@
--- This file was automatically generated for the LuaDist project.
-
-package = "copastimer"
-version = "0.4.3-1"
--- LuaDist source
+package = "CopasTimer"
+version = "1.0.0-1"
 source = {
-  tag = "0.4.3-1",
-  url = "git://github.com/LuaDist-testing/copastimer.git"
+    url = "https://github.com/Tieske/CopasTimer/archive/version_1.0.0.tar.gz",
+    dir = "CopasTimer-version_1.0.0"
 }
--- Original source
--- source = {
---     url = "http://tieske.github.com/CopasTimer/copastimer-0.4.3.tar.gz",
--- }
 description = {
     summary = "Copas add-on to provide timers, background tasks and optionally events",
     detailed = [[
@@ -27,6 +20,7 @@ description = {
     homepage = "http://www.thijsschreijer.nl/blog/?page_id=537"
 }
 dependencies = {
+    "coxpcall >= 1.15",
     "copas >= 1.1.6",
 }
 build = {

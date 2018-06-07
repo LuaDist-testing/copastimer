@@ -1,5 +1,3 @@
-
-
 local copas = require ("copas.timer")
 local ev = require("copas.eventer")
 local socket = require("socket")
@@ -38,23 +36,32 @@ local object1 = {
         self:dispatch(self.events.started)
     end,
 
-    copaseventhandler = function(self, copas, event, ...)
-        if event == copas.events.loopstarting then
-            print("COPAS is starting, lets initialize, set counter properly")
-            self.i = 0
-        elseif event == copas.events.loopstarted then
-            copas.addworker(function(...) local t = {...} print(table.concat(t, " ")) end, { "Hello", "world" })
-            -- notice that the line above executes some time after the line below...
-            print("COPAS has started, lets wait and see what happens")
-        elseif event == copas.events.loopstopping then
-            print("COPAS is stopping, cancelling the timer")
-            self.timer:cancel()
-        elseif event == copas.events.loopstopped then
-            print("COPAS loop has stopped, so we're done")
+    copaseventhandler = function(self, eventqueue)
+      while true do
+        local event = eventqueue:pop()
+        if event.name == copas.events.loopstarting then
+          print("COPAS is starting, lets initialize, set counter properly")
+          self.i = 0
+        elseif event.name == copas.events.loopstarted then
+          local w = copas.addworker(function(queue)
+              local t = queue:pop()
+              print(table.concat(t, " "))
+              copas.removeworker(queue)
+          end)
+          w:push({ "Hello", "world" })
+          -- notice that the line above executes some time after the line below...
+          print("COPAS has started, lets wait and see what happens")
+        elseif event.name == copas.events.loopstopping then
+          print("COPAS is stopping, cancelling the timer")
+          self.timer:cancel()
+        elseif event.name == copas.events.loopstopped then
+          print("COPAS loop has stopped, so we're done")
         else
-            print("Received an unknown copas event; " .. tostring(event))
+          print("Received an unknown copas event; " .. tostring(event.name))
         end
+      end
     end,
+
 }
 
 -- initialize object (will decorate and register with the eventer) and subscribe to copas events
@@ -62,8 +69,11 @@ object1:init()
 
 -- create second object to consume events
 local object2 = {
-    eventhandler = function(self, server, event, i)
-        print ("received event; " .. event .. " with data; " .. tostring(i) )
+    eventhandler = function(self, eventqueue)
+	    while true do
+        local event = eventqueue:pop()
+        print ("received event; " .. event.name .. " with data; " .. tostring(event[1]) )
+      end
     end,
 }
 -- subscribe second object to events of first object, do not use 'decorate' this time, but
