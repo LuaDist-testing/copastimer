@@ -25,16 +25,16 @@
 -- If a worker waits for work (call <code>yield()</code> when it has nothing to do)
 -- it will create a busy-wait situation.<br/>
 -- <br/>Copas Timer is free software under the MIT/X11 license.
--- @copyright 2011 Thijs Schreijer
--- @release Version 0.4.1, Timer module to extend Copas with a timer and worker capability
+-- @copyright 2011-2012 Thijs Schreijer
+-- @release Version 0.4.2, Timer module to extend Copas with a timer and worker capability
 
 local copas = require("copas")
 local socket = require("socket")
 require("coxpcall")
 
 local timerid = 1		-- counter to create unique timerid's
-local timers = {}		-- table with timers by their id
-local order = nil		-- linked list with timers sorted by expiry time, 'order' being the first to expire
+local timers = {}		-- table with running timers by their id
+local order = nil		-- linked list with running timers sorted by expiry time, 'order' being the first to expire
 local PRECISION = 0.02  -- default precision value
 local TIMEOUT = 5       -- default timeout value
 local workers = {}      -- list with background worker threads
@@ -46,6 +46,7 @@ local exiteventthreads  -- table with exit threads to be completed before exitin
 local exitcanceltimers  -- should timers be cancelled after ending the loop
 local exittimeout       -- timeout for workers to exit
 local exittimer         -- timerhandling the exit timeout
+local runningworker     -- the currently running worker table
 
 
 -------------------------------------------------------------------------------
@@ -78,9 +79,12 @@ local timeradd = function (t)
     if not order then
         -- list empty, just add
         order=t
+        order.next = nil
+        order.previous = nil
     elseif t.when < order.when then
         -- insert at top of list
         t.next = order
+        t.previous = nil
         order.previous = t
         order = t
     else
@@ -161,6 +165,10 @@ copas.getworker = function(t)
                 return v
             end
         end
+        -- not found yet, is it now running?
+        if runningworker and runningworker == t or runningworker.thread == t then
+            return runningworker
+        end
         -- wasn't found
         return nil
     end
@@ -177,7 +185,15 @@ copas.removeworker = function(t)
         if popthread(t) then
             return true -- succeeded
         else
-            return false    -- not found
+            if not runningworker then
+                return false    -- not found
+            else
+                -- we're currently being run from a worker, so check whether its that one being removed
+                if runningworker == t or runningworker.thread == t then
+                    runningworker._hasbeenremoved = true
+                    return true
+                end
+            end
         end
     else
         return false    -- not found
@@ -224,13 +240,19 @@ local dowork = function()
     if t then
         -- execute this thread
         t.args = t.args or {}
+        runningworker = t
         local success, err = coroutine.resume(t.thread, unpack(t.args))
+        runningworker = nil
         if not success then
             t.errhandler(nil, err)
         end
         if coroutine.status(t.thread) ~= "dead" then
             t.args = nil    -- handled those, so drop them
-            pushthread(t)   -- add thread to end of queue again for next run
+            if not t._hasbeenremoved then -- double check the worker didn't remove itself
+                pushthread(t)   -- add thread to end of queue again for next run
+            else
+                t._hasbeenremoved = nil
+            end
         end
     end
     return (#workers > 0)
@@ -355,12 +377,16 @@ end
 -- @see copas.cancelall
 copas.newtimer = function(f_arm, f_expire, f_cancel, recurring, f_error)
     return {
-        interval = 1,
+        interval = nil,     -- must be set on first call to arm()
         recurring = recurring,
         -------------------------------------------------------------------------------
-        -- Arms a previously created timer
+        -- Arms a previously created timer. When <code>arm()</code> is called on an already
+        -- armed timer then the timer will be rescheduled, the <code>cancel</code> handler
+        -- will not be called in this case, but the <code>arm</code> handler will run.
         -- @name t:arm
-        -- @param interval the interval after which the timer expires (in seconds)
+        -- @param interval the interval after which the timer expires (in seconds). This must
+        -- be set with the first call to <code>arm()</code> any additional calls will reuse
+        -- the existing interval if no new interval is provided.
         -- @return the timer <code>t</code>
         -- @usage# -- Create a new timer
         -- local t = copas.newtimer(nil, function () print("hello world") end, nil, false)
@@ -370,7 +396,10 @@ copas.newtimer = function(f_arm, f_expire, f_cancel, recurring, f_error)
         -- @see copas.newtimer
         arm = function(self, interval)
             self.interval = interval or self.interval
+            assert(type(self.interval) == "number", "Interval not set, expected number, got " .. type(self.interval))
             self.when = socket.gettime() + interval
+            -- if armed previously, remove myself
+            timerremove(self)
             -- add to list
             timeradd(self)
             -- run ARM handler
@@ -393,7 +422,8 @@ copas.newtimer = function(f_arm, f_expire, f_cancel, recurring, f_error)
             end
         end,
         -------------------------------------------------------------------------------
-        -- Cancels a previously armed timer
+        -- Cancels a previously armed timer. This will run the <code>cancel</code> handler
+        -- provided when creating the timer.
         -- @name t:cancel
         -- @usage# -- Create a new timer
         -- local t = copas.newtimer(nil, function () print("hello world") end, nil, false)
@@ -564,6 +594,86 @@ copas.delayedexecutioner = function (delay, func, ...)
     copas.newtimer(nil, f, nil, false):arm(delay)
 end
 
+
+-------------------------------------------------------------------------------
+-- Executes a handler function after a specific condition has been met
+-- (non-blocking wait). This is implemented using a timer, hence both the
+-- <code>condition()</code> and <code>handler()</code> functions run on the main
+-- thread and should return swiftly and should not yield.
+-- @param interval interval (in seconds) for checking the condition
+-- @param timeout timeout value (in seconds) after which the operation fails
+-- (note that the <code>handler()</code> will still be called)
+-- @param condition a function that is called repeatedly. It will get the
+-- additional parameters specified to <code>waitforcondition()</code>. The
+-- function should return <code>true</code> or <code>false</code> depending on
+-- whether the condition was met.
+-- @param handler the handler function that will be executed. It will
+-- <strong>always</strong> be executed. The first argument to the handler will
+-- be <code>true</code> if the condition was met, or <code>false</code> if the
+-- operation timed-out, any additional parameters provided to
+-- <code>waitforcondition()</code> will be passed after that.
+-- @param ... additional parameters passed on to both the <code>condition()</code>
+-- and <code>handler()</code> functions.
+-- @return timer that verifies the condition.
+-- @usage# local count = 1
+-- function check(param)
+--     print("Check count ", count, ". Called using param = ", param)
+--     count = count + 1
+--     return (count == 10)
+-- end
+-- &nbsp
+-- function done(conditionmet, param)
+--     if conditionmet then
+--         print("The condition was met when count reached ", count - 1,". Called using param = ", param)
+--     else
+--         print("Failed, condition was not met. Called using param = ", param)
+--     end
+-- end
+-- &nbsp
+-- copas.waitforcondition(0.1, 5, check, done, "1234567890")
+copas.waitforcondition = function (interval, timeout, condition, handler, ...)
+    assert (interval,'No interval provided')
+    assert (timeout,'No timeout provided')
+    assert (condition,'No condition function provided')
+    assert (handler,'No handler function provided')
+
+    local arglist = {...}
+    local timeouttime = socket.gettime() + timeout
+    local t
+    t = copas.newtimer(nil, function()
+            -- timer function, check condition
+            local result, err = pcall(condition, unpack(arglist))
+            if result == false then
+                -- we had an error
+                print("copas.waitforcondition; condition check returned error: " .. tostring(err))
+                t:cancel()
+            else
+                local conditionmet = err
+                if conditionmet then
+                    -- completed, cancel timer, call handler with success
+                    t:cancel()
+                    local result, err = pcall(handler, conditionmet, unpack(arglist))
+                    if not result then
+                        -- we had an error calling the handler
+                        print("copas.waitforcondition; handler returned error after condition was met: " .. tostring(err))
+                    end
+                else
+                    if timeouttime < socket.gettime() then
+                        -- timeout, call handler with first argument 'false' to indicate timeout
+                        t:cancel()
+                        local result, err = pcall(handler, conditionmet, unpack(arglist))
+                        if not result then
+                            -- we had an error
+                            print("copas.waitforcondition; handler returned error after waiting timed-out: " .. tostring(err))
+                        end
+                    else
+                        -- Not met, but also not timed-out yet, do nothing, let timer continue
+                    end
+                end
+            end
+        end, nil, true):arm(interval)
+    return t
+end
 
 -- return existing/modified copas table
 return copas
