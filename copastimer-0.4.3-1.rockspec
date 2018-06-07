@@ -1,15 +1,15 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = "copastimer"
-version = "0.4.2-1"
+version = "0.4.3-1"
 -- LuaDist source
 source = {
-  tag = "0.4.2-1",
+  tag = "0.4.3-1",
   url = "git://github.com/LuaDist-testing/copastimer.git"
 }
 -- Original source
 -- source = {
---     url = "https://github.com/downloads/Tieske/CopasTimer/copastimer-0.4.2.tar.gz",
+--     url = "http://tieske.github.com/CopasTimer/copastimer-0.4.3.tar.gz",
 -- }
 description = {
     summary = "Copas add-on to provide timers, background tasks and optionally events",
